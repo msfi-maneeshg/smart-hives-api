@@ -32,3 +32,11 @@ type HiveDataSet struct {
 	EventName                                      string
 	HiveEventData                                  []DBDataRowsDocData
 }
+
+type DeviceTypeResultSet struct {
+	Result []DeviceTypeDetail `json:"results"`
+}
+
+type DeviceTypeDetail struct {
+	ID string `json:"id"`
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"smart-hives/process/aggregated"
+	"smart-hives/process/database"
 	"strings"
 )
 
@@ -22,5 +23,6 @@ func main() {
 		}
 	}
 
+	database.ConnectDatabase("smart-hives")
 	aggregated.ProcessFarmerData(farmer)
 }

@@ -1,0 +1,50 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"smart-hives/api/api"
+	"smart-hives/api/database"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const IOTURL = "https://a-62m15c-ubghzixbav:r+@6D*-wMzAw6U&4tA@62m15c.internetofthings.ibmcloud.com/api/v0002/"
+
+func init() {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	database.Data = client.Database("smart-hives")
+
+	fmt.Println("MongoDB is connected!")
+}
+
+func main() {
+	//-------setting up route
+	router := mux.NewRouter()
+	router.HandleFunc("/last-event/{deviceType}/{deviceId}", api.GetDeviceLastEvent).Methods("GET")
+	router.HandleFunc("/device-types", api.GetDeviceTypes).Methods("GET")
+	router.HandleFunc("/devices/{deviceType}", api.GetDevices).Methods("GET")
+	router.HandleFunc("/process/{farmer}", api.ProcessFarmerData).Methods("GET")
+	router.HandleFunc("/hive-data/{farmer}/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "UPDATE"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	})
+	fmt.Println("Server is started...")
+	log.Fatal(http.ListenAndServe(":8000", c.Handler(router)))
+}
