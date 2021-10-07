@@ -15,7 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const IOTURL = "https://a-62m15c-ubghzixbav:r+@6D*-wMzAw6U&4tA@62m15c.internetofthings.ibmcloud.com/api/v0002/"
+const IOTURL = "https://a-8l173e-otjztnyacu:ChLq7u0pO+*hl7JER_@8l173e.internetofthings.ibmcloud.com/api/v0002/"
 
 func init() {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -38,6 +38,10 @@ func main() {
 	router.HandleFunc("/devices/{deviceType}", api.GetDevices).Methods("GET")
 	router.HandleFunc("/process/{farmer}", api.ProcessFarmerData).Methods("GET")
 	router.HandleFunc("/hive-data/{farmer}/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
+
+	router.HandleFunc("/iot/device-type/{deviceType}", api.GetDevieType).Methods("GET")
+	router.HandleFunc("/iot/create-device-type/{deviceType}", api.CreateNewDevieType).Methods("POST")
+	router.HandleFunc("/iot/create-device/{deviceType}/{deviceID}", api.CreateNewDevie).Methods("POST")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

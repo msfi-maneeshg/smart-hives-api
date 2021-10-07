@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -17,7 +18,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-const IOTURL = "https://a-62m15c-ubghzixbav:r+@6D*-wMzAw6U&4tA@62m15c.internetofthings.ibmcloud.com/api/v0002/"
+const IOTURL = "https://a-8l173e-otjztnyacu:ChLq7u0pO+*hl7JER_@8l173e.internetofthings.ibmcloud.com/api/v0002/"
 
 func ProcessFarmerData(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -219,4 +220,206 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write(body)
 	return
+}
+
+// CreateNewDevieType:
+func CreateNewDevieType(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	url := IOTURL + "device/types"
+	deviceTypeStatus := isDeviceTypeExist(deviceType)
+	if deviceTypeStatus {
+		message := []byte(`{"msg":"FarmerID is already exist"}`)
+		w.WriteHeader(400)
+		w.Write(message)
+		return
+	}
+
+	var objNewDeviceType NewDeviceType
+	objNewDeviceType.ID = deviceType
+	objNewDeviceType.ClassId = "Device"
+	objNewDeviceType.Description = "Hives for " + deviceType
+	objNewDeviceType.metadata.MaxHumidity = 70
+	objNewDeviceType.metadata.MinHumidity = 30
+	objNewDeviceType.metadata.MaxTemperature = 45
+	objNewDeviceType.metadata.MinTemperature = 35
+	objNewDeviceType.metadata.MaxWeight = 200
+	objNewDeviceType.metadata.MinWeight = 50
+
+	//-----------add new device
+	objByte, _ := json.Marshal(objNewDeviceType)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		message := []byte(`{"msg":"Error while creating new device"}`)
+		w.WriteHeader(500)
+		w.Write(message)
+		return
+	}
+
+	checkDestinationStatus := isDestinationExist(deviceType)
+	if !checkDestinationStatus {
+		//-------- create destination
+		var objCreateDestination CreateDestination
+		objCreateDestination.Name = deviceType
+		objCreateDestination.Type = "cloudant"
+		objCreateDestination.Configuration.BucketInterval = "DAY"
+
+		createDestinationURL := IOTURL + "historianconnectors/615a95d64a0b1217f089043c/destinations"
+		objByte, _ = json.Marshal(objCreateDestination)
+		resp, err = http.Post(createDestinationURL, "application/json", bytes.NewBuffer(objByte))
+		if err != nil {
+			fmt.Println("error Body:", err.Error())
+		}
+		defer resp.Body.Close()
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			message := []byte(`{"msg":"Error while creating destination"}`)
+			w.WriteHeader(500)
+			w.Write(message)
+			return
+		}
+
+		//-------- create forwarding rule
+		var objCreateForwardingRule CreateForwardingRule
+		objCreateForwardingRule.Name = deviceType + " rules"
+		objCreateForwardingRule.DestinationName = deviceType
+		objCreateForwardingRule.Type = "event"
+		objCreateForwardingRule.Selector.DeviceType = deviceType
+		objCreateForwardingRule.Selector.EventId = "HiveEvent"
+
+		createForwardingURL := IOTURL + "historianconnectors/615a95d64a0b1217f089043c/forwardingrules"
+		objByte, _ = json.Marshal(objCreateForwardingRule)
+		resp, err = http.Post(createForwardingURL, "application/json", bytes.NewBuffer(objByte))
+		if err != nil {
+			fmt.Println("error Body:", err.Error())
+		}
+		defer resp.Body.Close()
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			message := []byte(`{"msg":"Error while creating forwarding rules"}`)
+			w.WriteHeader(500)
+			w.Write(message)
+			return
+		}
+	}
+	message := []byte(`{"msg":"Farmer is added"}`)
+	w.WriteHeader(200)
+	w.Write(message)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+// CreateNewDevie:
+func CreateNewDevie(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	var deviceID = vars["deviceID"]
+	url := IOTURL + "device/types/" + deviceType + "/devices"
+
+	checkDeviceStatus := isDeviceExist(deviceType, deviceID)
+	if checkDeviceStatus {
+		message := []byte(`{"msg":"HiveID is already exist"}`)
+		w.WriteHeader(400)
+		w.Write(message)
+		return
+	}
+
+	var objCreateNewDevice CreateNewDevice
+	objCreateNewDevice.DeviceId = deviceID
+	objCreateNewDevice.Metadata.MaxHumidity = 70
+	objCreateNewDevice.Metadata.MinHumidity = 30
+	objCreateNewDevice.Metadata.MaxTemperature = 45
+	objCreateNewDevice.Metadata.MinTemperature = 35
+	objCreateNewDevice.Metadata.MaxWeight = 200
+	objCreateNewDevice.Metadata.MinWeight = 50
+
+	//-----------add new device
+	objByte, _ := json.Marshal(objCreateNewDevice)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		message := []byte(`{"msg":"Error while creating new device"}`)
+		w.WriteHeader(500)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(message)
+		return
+	}
+
+	message := []byte(`{"msg":"Farmer's Hive is added"}`)
+	w.WriteHeader(200)
+	w.Write(message)
+	w.Header().Set("Content-Type", "application/json")
+}
+
+//GetDevieType
+func GetDevieType(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	url := IOTURL + "device/types/" + deviceType
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic("malformed input")
+	}
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
+}
+
+func isDeviceTypeExist(deviceType string) (status bool) {
+	url := IOTURL + "device/types/" + deviceType
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		status = true
+	}
+
+	return status
+}
+
+func isDeviceExist(deviceType, deviceID string) (status bool) {
+	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		status = true
+	}
+
+	return status
+}
+
+func isDestinationExist(deviceType string) (status bool) {
+	serviceID := "615a95d64a0b1217f089043c"
+	url := IOTURL + serviceID + "/destinations/" + deviceType
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		status = true
+	}
+
+	return status
 }

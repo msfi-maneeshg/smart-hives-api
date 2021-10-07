@@ -23,6 +23,7 @@ func main() {
 		}
 	}
 
+	
 	database.ConnectDatabase("smart-hives")
 	aggregated.ProcessFarmerData(farmer)
 }
