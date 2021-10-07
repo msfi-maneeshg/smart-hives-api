@@ -40,6 +40,7 @@ func main() {
 	router.HandleFunc("/hive-data/{farmer}/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
 
 	router.HandleFunc("/iot/device-type/{deviceType}", api.GetDevieType).Methods("GET")
+	router.HandleFunc("/iot/device-list/{deviceType}", api.GetDevieList).Methods("GET")
 	router.HandleFunc("/iot/create-device-type/{deviceType}", api.CreateNewDevieType).Methods("POST")
 	router.HandleFunc("/iot/create-device/{deviceType}/{deviceID}", api.CreateNewDevie).Methods("POST")
 

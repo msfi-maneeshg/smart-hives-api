@@ -381,6 +381,26 @@ func GetDevieType(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+//GetDevieList
+func GetDevieList(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	url := IOTURL + "device/types/" + deviceType + "/devices"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic("malformed input")
+	}
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
+}
+
 func isDeviceTypeExist(deviceType string) (status bool) {
 	url := IOTURL + "device/types/" + deviceType
 	resp, err := http.Get(url)
