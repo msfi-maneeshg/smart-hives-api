@@ -54,16 +54,16 @@ type NewDeviceType struct {
 	ID          string         `json:"id"`
 	Description string         `json:"description"`
 	ClassId     string         `json:"classId"`
-	metadata    DeviceMetadata `json:"metadata"`
+	Metadata    DeviceMetadata `json:"metadata"`
 }
 
 type DeviceMetadata struct {
-	MaxTemperature int64 `json:"maxTemperature"`
-	MinTemperature int64 `json:"minTemperature"`
-	MinWeight      int64 `json:"minWeight"`
-	MaxHumidity    int64 `json:"maxHumidity"`
-	MaxWeight      int64 `json:"maxWeight"`
-	MinHumidity    int64 `json:"minHumidity"`
+	MaximumTemperature int64 `json:"maximumTemperature"`
+	MinimumTemperature int64 `json:"minimumTemperature"`
+	MinimumHumidity    int64 `json:"minimumHumidity"`
+	MaximumHumidity    int64 `json:"maximumHumidity"`
+	MinimumWeight      int64 `json:"minimumWeight"`
+	MaximumWeight      int64 `json:"maximumWeight"`
 }
 
 type CreateDestination struct {
@@ -87,7 +87,19 @@ type ForwardingRuleSelector struct {
 	EventId    string `json:"eventId"`
 }
 
-type CreateNewDevice struct {
-	DeviceId string         `json:"deviceId"`
-	Metadata DeviceMetadata `json:"metadata"`
+type NewDeviceInfo struct {
+	DeviceId   string          `json:"deviceId"`
+	DeviceInfo DeviceOtherInfo `json:"deviceInfo,omitempty"`
+	Metadata   DeviceMetadata  `json:"metadata"`
+}
+
+type DeviceOtherInfo struct {
+	SserialNumber       string `json:"serialNumber,omitempty"`
+	Description         string `json:"description,omitempty"`
+	DescriptiveLocation string `json:"descriptiveLocation,omitempty"`
+	DeviceClass         string `json:"deviceClass,omitempty"`
+	FirmwareVersion     string `json:"firmwareVersion,omitempty"`
+	HardwareVersion     string `json:"hardwareVersion,omitempty"`
+	Manufacturer        string `json:"manufacturer,omitempty"`
+	Model               string `json:"model,omitempty"`
 }

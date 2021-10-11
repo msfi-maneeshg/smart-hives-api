@@ -41,12 +41,14 @@ func main() {
 
 	router.HandleFunc("/iot/device-type/{deviceType}", api.GetDevieType).Methods("GET")
 	router.HandleFunc("/iot/device-list/{deviceType}", api.GetDevieList).Methods("GET")
+	router.HandleFunc("/iot/device-info/{deviceType}/{deviceID}", api.GetDevieInfo).Methods("GET")
+	router.HandleFunc("/iot/device-info/{deviceType}/{deviceID}", api.DeleteDevieInfo).Methods("DELETE")
 	router.HandleFunc("/iot/create-device-type/{deviceType}", api.CreateNewDevieType).Methods("POST")
-	router.HandleFunc("/iot/create-device/{deviceType}/{deviceID}", api.CreateNewDevie).Methods("POST")
+	router.HandleFunc("/iot/create-device/{deviceType}", api.CreateNewDevice).Methods("POST")
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "UPDATE"},
+		AllowedMethods:   []string{"GET", "POST", "UPDATE", "DELETE"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})

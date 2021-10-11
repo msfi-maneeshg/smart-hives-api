@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"smart-hives/api/common"
 	"smart-hives/api/database"
 	"time"
 
@@ -240,12 +241,12 @@ func CreateNewDevieType(w http.ResponseWriter, r *http.Request) {
 	objNewDeviceType.ID = deviceType
 	objNewDeviceType.ClassId = "Device"
 	objNewDeviceType.Description = "Hives for " + deviceType
-	objNewDeviceType.metadata.MaxHumidity = 70
-	objNewDeviceType.metadata.MinHumidity = 30
-	objNewDeviceType.metadata.MaxTemperature = 45
-	objNewDeviceType.metadata.MinTemperature = 35
-	objNewDeviceType.metadata.MaxWeight = 200
-	objNewDeviceType.metadata.MinWeight = 50
+	objNewDeviceType.Metadata.MaximumHumidity = 70
+	objNewDeviceType.Metadata.MinimumHumidity = 30
+	objNewDeviceType.Metadata.MaximumTemperature = 45
+	objNewDeviceType.Metadata.MinimumTemperature = 35
+	objNewDeviceType.Metadata.MaximumWeight = 200
+	objNewDeviceType.Metadata.MinimumWeight = 50
 
 	//-----------add new device
 	objByte, _ := json.Marshal(objNewDeviceType)
@@ -314,32 +315,37 @@ func CreateNewDevieType(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
-// CreateNewDevie:
-func CreateNewDevie(w http.ResponseWriter, r *http.Request) {
-
+// CreateNewDevice:
+func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var objCreateNewDevice NewDeviceInfo
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
-	var deviceID = vars["deviceID"]
-	url := IOTURL + "device/types/" + deviceType + "/devices"
 
-	checkDeviceStatus := isDeviceExist(deviceType, deviceID)
-	if checkDeviceStatus {
-		message := []byte(`{"msg":"HiveID is already exist"}`)
-		w.WriteHeader(400)
-		w.Write(message)
+	//------check body request
+	if r.Body == nil {
+		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&objCreateNewDevice)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
 		return
 	}
 
-	var objCreateNewDevice CreateNewDevice
-	objCreateNewDevice.DeviceId = deviceID
-	objCreateNewDevice.Metadata.MaxHumidity = 70
-	objCreateNewDevice.Metadata.MinHumidity = 30
-	objCreateNewDevice.Metadata.MaxTemperature = 45
-	objCreateNewDevice.Metadata.MinTemperature = 35
-	objCreateNewDevice.Metadata.MaxWeight = 200
-	objCreateNewDevice.Metadata.MinWeight = 50
+	if objCreateNewDevice.DeviceId == "" {
+		common.APIResponse(w, http.StatusBadRequest, "DeviceID can not be empty!")
+		return
+	}
+
+	checkDeviceStatus := isDeviceExist(deviceType, objCreateNewDevice.DeviceId)
+	if checkDeviceStatus {
+		common.APIResponse(w, http.StatusBadRequest, "DeviceID is already exist!")
+		return
+	}
 
 	//-----------add new device
+	url := IOTURL + "device/types/" + deviceType + "/devices"
 	objByte, _ := json.Marshal(objCreateNewDevice)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
 	if err != nil {
@@ -348,17 +354,11 @@ func CreateNewDevie(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		message := []byte(`{"msg":"Error while creating new device"}`)
-		w.WriteHeader(500)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(message)
+		common.APIResponse(w, http.StatusInternalServerError, "Error while creating new device")
 		return
 	}
 
-	message := []byte(`{"msg":"Farmer's Hive is added"}`)
-	w.WriteHeader(200)
-	w.Write(message)
-	w.Header().Set("Content-Type", "application/json")
+	common.APIResponse(w, http.StatusOK, "Farmer's Device is added!")
 }
 
 //GetDevieType
@@ -399,6 +399,74 @@ func GetDevieList(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	w.Write(body)
+}
+
+//GetDevieInfo
+func GetDevieInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	var deviceID = vars["deviceID"]
+
+	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("error Body:", err.Error())
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		message := []byte(`{"msg":"DeviceID not Found"}`)
+		w.WriteHeader(resp.StatusCode)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(message)
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic("malformed input")
+	}
+	w.WriteHeader(resp.StatusCode)
+	w.Write(body)
+}
+
+//DeleteDevieInfo
+func DeleteDevieInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	var deviceID = vars["deviceID"]
+
+	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+
+	// Create client
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		message := []byte(`{"msg":"Somwthing went wrong!"}`)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(message)
+		return
+	}
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		message := []byte(`{"msg":"Something went wrong!"}`)
+		w.WriteHeader(resp.StatusCode)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(message)
+		return
+	}
+	defer resp.Body.Close()
+
+	message := []byte(`{"msg":"Device has been removed!"}`)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(message)
 }
 
 func isDeviceTypeExist(deviceType string) (status bool) {
