@@ -58,12 +58,12 @@ type NewDeviceType struct {
 }
 
 type DeviceMetadata struct {
-	MaximumTemperature int64 `json:"maximumTemperature"`
-	MinimumTemperature int64 `json:"minimumTemperature"`
-	MinimumHumidity    int64 `json:"minimumHumidity"`
-	MaximumHumidity    int64 `json:"maximumHumidity"`
-	MinimumWeight      int64 `json:"minimumWeight"`
-	MaximumWeight      int64 `json:"maximumWeight"`
+	MaximumTemperature *int64 `json:"maximumTemperature,omitempty"`
+	MinimumTemperature *int64 `json:"minimumTemperature,omitempty"`
+	MinimumHumidity    *int64 `json:"minimumHumidity,omitempty"`
+	MaximumHumidity    *int64 `json:"maximumHumidity,omitempty"`
+	MinimumWeight      *int64 `json:"minimumWeight,omitempty"`
+	MaximumWeight      *int64 `json:"maximumWeight,omitempty"`
 }
 
 type CreateDestination struct {
@@ -88,9 +88,9 @@ type ForwardingRuleSelector struct {
 }
 
 type NewDeviceInfo struct {
-	DeviceId   string          `json:"deviceId"`
+	DeviceId   string          `json:"deviceId,omitempty"`
 	DeviceInfo DeviceOtherInfo `json:"deviceInfo,omitempty"`
-	Metadata   DeviceMetadata  `json:"metadata"`
+	Metadata   DeviceMetadata  `json:"metadata,omitempty"`
 }
 
 type DeviceOtherInfo struct {

@@ -223,8 +223,8 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// CreateNewDevieType:
-func CreateNewDevieType(w http.ResponseWriter, r *http.Request) {
+// CreateNewDeviceType:
+func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
@@ -241,12 +241,12 @@ func CreateNewDevieType(w http.ResponseWriter, r *http.Request) {
 	objNewDeviceType.ID = deviceType
 	objNewDeviceType.ClassId = "Device"
 	objNewDeviceType.Description = "Hives for " + deviceType
-	objNewDeviceType.Metadata.MaximumHumidity = 70
+	/*objNewDeviceType.Metadata.MaximumHumidity = 70
 	objNewDeviceType.Metadata.MinimumHumidity = 30
 	objNewDeviceType.Metadata.MaximumTemperature = 45
 	objNewDeviceType.Metadata.MinimumTemperature = 35
 	objNewDeviceType.Metadata.MaximumWeight = 200
-	objNewDeviceType.Metadata.MinimumWeight = 50
+	objNewDeviceType.Metadata.MinimumWeight = 50*/
 
 	//-----------add new device
 	objByte, _ := json.Marshal(objNewDeviceType)
@@ -361,8 +361,8 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 	common.APIResponse(w, http.StatusOK, "Farmer's Device is added!")
 }
 
-//GetDevieType
-func GetDevieType(w http.ResponseWriter, r *http.Request) {
+//GetDeviceType
+func GetDeviceType(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	url := IOTURL + "device/types/" + deviceType
@@ -381,8 +381,8 @@ func GetDevieType(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//GetDevieList
-func GetDevieList(w http.ResponseWriter, r *http.Request) {
+//GetDeviceList
+func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	url := IOTURL + "device/types/" + deviceType + "/devices"
@@ -401,8 +401,8 @@ func GetDevieList(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//GetDevieInfo
-func GetDevieInfo(w http.ResponseWriter, r *http.Request) {
+//GetDeviceInfo
+func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
@@ -431,8 +431,8 @@ func GetDevieInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//DeleteDevieInfo
-func DeleteDevieInfo(w http.ResponseWriter, r *http.Request) {
+//DeleteDeviceInfo
+func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
@@ -467,6 +467,59 @@ func DeleteDevieInfo(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(message)
+}
+
+// UpdateDeviceInfo:
+func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var objCreateNewDevice NewDeviceInfo
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+	var deviceID = vars["deviceID"]
+
+	//------check body request
+	if r.Body == nil {
+		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&objCreateNewDevice)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
+		return
+	}
+
+	checkDeviceStatus := isDeviceExist(deviceType, deviceID)
+	if !checkDeviceStatus {
+		common.APIResponse(w, http.StatusBadRequest, "DeviceID not found!")
+		return
+	}
+
+	//-----------add new device
+	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	objByte, _ := json.Marshal(objCreateNewDevice)
+
+	// Create client
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Somwthing went wrong!")
+		return
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Somwthing went wrong!")
+		return
+	}
+	defer resp.Body.Close()
+
+	common.APIResponse(w, http.StatusOK, "Device info has been updated!")
+
 }
 
 func isDeviceTypeExist(deviceType string) (status bool) {
