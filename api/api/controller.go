@@ -6,11 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"smart-hives/api/common"
 	"smart-hives/api/database"
+	"strings"
 	"time"
 
 	"github.com/IBM/cloudant-go-sdk/auth"
@@ -226,6 +230,9 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 // CreateNewDeviceType:
 func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 
+	// connectDeviceTypeWithPI(w, r, "61656a87ed66dc6022adad22")
+	addNotificationRules(w, r, "6165712dcf7abe0fa1cabea2")
+	return
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	url := IOTURL + "device/types"
@@ -315,6 +322,447 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
+func createEventSchema(w http.ResponseWriter) {
+	endpoint := IOTURL + "draft/schemas"
+	// New multipart writer.
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	fw, err := writer.CreateFormField("name")
+	if err != nil {
+		fmt.Println("0:", err.Error())
+	}
+	_, err = io.Copy(fw, strings.NewReader("HiveEventSchema"))
+	if err != nil {
+		fmt.Println("1:", err.Error())
+	}
+
+	fw, err = writer.CreateFormFile("schemaFile", "eventTypeSchema.json")
+	if err != nil {
+		fmt.Println("2:", err.Error())
+	}
+	file, err := os.Open("eventTypeSchema.json")
+	if err != nil {
+		fmt.Println("3:", err.Error())
+	}
+
+	_, err = io.Copy(fw, file)
+	if err != nil {
+		fmt.Println("4:", err.Error())
+	}
+	// Close multipart writer.
+	writer.Close()
+
+	client := &http.Client{}
+	r, err := http.NewRequest("POST", endpoint, bytes.NewReader(body.Bytes())) // URL-encoded payload
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Set("Content-Type", "multipart/form-data")
+
+	res, err := client.Do(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(res.Status)
+	defer res.Body.Close()
+
+	body1, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w.WriteHeader(res.StatusCode)
+	w.Write(body1)
+	return
+}
+
+func createEventType(w http.ResponseWriter) {
+	url := IOTURL + "draft/event/types/"
+
+	var objEventType CreateInterface
+	objEventType.Name = "HiveEvent"
+	objEventType.SchemaId = "615d3164cf7abe0fa1cabe72"
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objEventType)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusOK, body)
+	return
+}
+
+func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/physicalinterfaces"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.Name = deviceType + "_PI"
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	var objOutputInterfaceInfo OutputInterfaceInfo
+	_ = json.Unmarshal(body, &objOutputInterfaceInfo)
+
+	connectEventTypeWithPI(w, r, objOutputInterfaceInfo.ID)
+}
+
+func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
+	//vars := mux.Vars(r)
+	//var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/physicalinterfaces/" + physicalInterfaceID + "/events"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.EventId = "HiveEvent"
+	objCreateInterface.EventTypeId = "615d3165cf7abe0fa1cabe73"
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	connectDeviceTypeWithPI(w, r, physicalInterfaceID)
+}
+
+func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/device/types/" + deviceType + "/physicalinterface"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.ID = physicalInterfaceID
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusOK, string(body))
+}
+
+func connectLogicalInterface(w http.ResponseWriter, r *http.Request, schemaId string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/logicalinterfaces/"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.Name = deviceType + "_LI"
+	objCreateInterface.Alias = deviceType + "_LI"
+	objCreateInterface.SchemaId = schemaId
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	var objOutputInterfaceInfo OutputInterfaceInfo
+	_ = json.Unmarshal(body, &objOutputInterfaceInfo)
+	//common.APIResponse(w, http.StatusOK, objOutputInterfaceInfo)
+
+	connectDeviceTypeWithLI(w, r, objOutputInterfaceInfo.ID)
+}
+
+func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/device/types/" + deviceType + "/logicalinterfaces"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.ID = logicalinterfaceID
+
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	/*body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}*/
+
+	// common.APIResponse(w, http.StatusOK, string(body))
+	defineMapping(w, r, logicalinterfaceID)
+}
+
+func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/device/types/" + deviceType + "/mappings"
+
+	var objCreateInterface CreateInterface
+	objCreateInterface.LogicalInterfaceId = logicalinterfaceID
+	objCreateInterface.NotificationStrategy = "on-state-change"
+	objCreateInterface.PropertyMappings.HiveEvent.Humidity = "$event.humidity"
+	objCreateInterface.PropertyMappings.HiveEvent.Weight = "$event.weight"
+	objCreateInterface.PropertyMappings.HiveEvent.Temperature = "$event.temperature"
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objCreateInterface)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusOK, string(body))
+}
+
+func activateInterface(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/device/types/" + deviceType
+
+	var objActivateInterface ActivateInterface
+	objActivateInterface.Operation = "activate-configuration"
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objActivateInterface)
+
+	// Create request
+	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusOK, string(body))
+}
+
+func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
+	// vars := mux.Vars(r)
+	// var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/logicalinterfaces/" + logicalinterfaceID + "/rules"
+
+	allNotificationRules := []NotificationRules{
+		{
+			Name:      "minimumTemperature",
+			Condition: "$state.temperature < $instance.metadata.minimumTemperature",
+		},
+		{
+			Name:      "maximumTemperature",
+			Condition: "$state.temperature > $instance.metadata.maximumTemperature",
+		},
+		{
+			Name:      "minimumHumidity",
+			Condition: "$state.humidity < $instance.metadata.minimumHumidity",
+		},
+		{
+			Name:      "maximumHumidity",
+			Condition: "$state.humidity > $instance.metadata.maximumHumidity",
+		},
+		{
+			Name:      "minimumWeight",
+			Condition: "$state.weight < $instance.metadata.minimumWeight",
+		},
+		{
+			Name:      "maximumWeight",
+			Condition: "$state.weight > $instance.metadata.maximumWeight",
+		},
+	}
+
+	for _, objNotificationRules := range allNotificationRules {
+		objNotificationRules.NotificationStrategy.When = "x-in-y"
+		objNotificationRules.NotificationStrategy.Count = 1
+		objNotificationRules.NotificationStrategy.TimePeriod = 60
+		// Create client
+		client := &http.Client{}
+
+		objByte, _ := json.Marshal(objNotificationRules)
+
+		// Create request
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+		if err != nil {
+			common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+			return
+		}
+		req.Header.Add("Content-Type", "application/json")
+
+		// Fetch Request
+		resp, err := client.Do(req)
+		if err != nil {
+			common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+			return
+		}
+		defer resp.Body.Close()
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+			return
+		}
+
+		common.APIResponse(w, http.StatusOK, string(body))
+	}
+
+	activateInterface(w, r)
+}
+
 // CreateNewDevice:
 func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 	var err error
@@ -352,6 +800,7 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("error Body:", err.Error())
 	}
 	defer resp.Body.Close()
+
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		common.APIResponse(w, http.StatusInternalServerError, "Error while creating new device")

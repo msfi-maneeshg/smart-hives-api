@@ -103,3 +103,47 @@ type DeviceOtherInfo struct {
 	Manufacturer        string `json:"manufacturer,omitempty"`
 	Model               string `json:"model,omitempty"`
 }
+
+//CreateInterface
+type CreateInterface struct {
+	ID                   string           `json:"id,omitempty"`
+	Name                 string           `json:"name,omitempty"`
+	SchemaId             string           `json:"schemaId,omitempty"`
+	EventId              string           `json:"eventId,omitempty"`
+	EventTypeId          string           `json:"eventTypeId,omitempty"`
+	Alias                string           `json:"alias,omitempty"`
+	LogicalInterfaceId   string           `json:"logicalInterfaceId,omitempty"`
+	NotificationStrategy string           `json:"notificationStrategy,omitempty"`
+	PropertyMappings     PropertyMappings `json:"propertyMappings,omitempty"`
+}
+
+type PropertyMappings struct {
+	HiveEvent HiveEvent `json:"HiveEvent,omitempty"`
+}
+
+type HiveEvent struct {
+	Temperature string `json:"temperature,omitempty"`
+	Humidity    string `json:"humidity,omitempty"`
+	Weight      string `json:"weight,omitempty"`
+}
+
+type ActivateInterface struct {
+	Operation string `json:"operation,omitempty"`
+}
+
+type NotificationRules struct {
+	Name                 string               `json:"name,omitempty"`
+	Condition            string               `json:"condition,omitempty"`
+	NotificationStrategy NotificationStrategy `json:"notificationStrategy,omitempty"`
+}
+
+type NotificationStrategy struct {
+	When       string `json:"when,omitempty"`
+	Count      int    `json:"count,omitempty"`
+	TimePeriod int    `json:"timePeriod,omitempty"`
+}
+
+//OutputInterfaceInfo
+type OutputInterfaceInfo struct {
+	ID string `json:"id,omitempty"`
+}
