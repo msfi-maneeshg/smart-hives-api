@@ -87,12 +87,14 @@ type ForwardingRuleSelector struct {
 	EventId    string `json:"eventId"`
 }
 
+//NewDeviceInfo:
 type NewDeviceInfo struct {
 	DeviceId   string          `json:"deviceId,omitempty"`
 	DeviceInfo DeviceOtherInfo `json:"deviceInfo,omitempty"`
 	Metadata   DeviceMetadata  `json:"metadata,omitempty"`
 }
 
+//DeviceOtherInfo:
 type DeviceOtherInfo struct {
 	SserialNumber       string `json:"serialNumber,omitempty"`
 	Description         string `json:"description,omitempty"`
@@ -104,46 +106,78 @@ type DeviceOtherInfo struct {
 	Model               string `json:"model,omitempty"`
 }
 
-//CreateInterface
+//CreateInterface:
 type CreateInterface struct {
-	ID                   string           `json:"id,omitempty"`
-	Name                 string           `json:"name,omitempty"`
-	SchemaId             string           `json:"schemaId,omitempty"`
-	EventId              string           `json:"eventId,omitempty"`
-	EventTypeId          string           `json:"eventTypeId,omitempty"`
-	Alias                string           `json:"alias,omitempty"`
-	LogicalInterfaceId   string           `json:"logicalInterfaceId,omitempty"`
-	NotificationStrategy string           `json:"notificationStrategy,omitempty"`
-	PropertyMappings     PropertyMappings `json:"propertyMappings,omitempty"`
+	ID                   string            `json:"id,omitempty"`
+	Name                 string            `json:"name,omitempty"`
+	SchemaId             string            `json:"schemaId,omitempty"`
+	EventId              string            `json:"eventId,omitempty"`
+	EventTypeId          string            `json:"eventTypeId,omitempty"`
+	Alias                string            `json:"alias,omitempty"`
+	LogicalInterfaceId   string            `json:"logicalInterfaceId,omitempty"`
+	NotificationStrategy string            `json:"notificationStrategy,omitempty"`
+	PropertyMappings     *PropertyMappings `json:"propertyMappings,omitempty"`
 }
 
+//PropertyMappings:
 type PropertyMappings struct {
 	HiveEvent HiveEvent `json:"HiveEvent,omitempty"`
 }
 
+//HiveEvent:
 type HiveEvent struct {
 	Temperature string `json:"temperature,omitempty"`
 	Humidity    string `json:"humidity,omitempty"`
 	Weight      string `json:"weight,omitempty"`
 }
 
+//OutputInterfaceInfo:
+type OutputInterfaceInfo struct {
+	ID string `json:"id,omitempty"`
+}
+
+//ActivateInterface:
 type ActivateInterface struct {
 	Operation string `json:"operation,omitempty"`
 }
 
+//NotificationRules:
 type NotificationRules struct {
 	Name                 string               `json:"name,omitempty"`
 	Condition            string               `json:"condition,omitempty"`
 	NotificationStrategy NotificationStrategy `json:"notificationStrategy,omitempty"`
 }
 
+//NotificationStrategy:
 type NotificationStrategy struct {
 	When       string `json:"when,omitempty"`
 	Count      int    `json:"count,omitempty"`
 	TimePeriod int    `json:"timePeriod,omitempty"`
 }
 
-//OutputInterfaceInfo
-type OutputInterfaceInfo struct {
-	ID string `json:"id,omitempty"`
+type ActionTrigger struct {
+	Name             string                  `json:"name,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	Type             string                  `json:"type,omitempty"`
+	Enabled          string                  `json:"enabled,omitempty"`
+	Configuration    TriggerConfiguration    `json:"configuration,omitempty"`
+	VariableMappings TriggerVariableMappings `json:"variableMappings,omitempty"`
+}
+
+type TriggerConfiguration struct {
+	LogicalInterfaceId string `json:"logicalInterfaceId,omitempty"`
+	RuleId             string `json:"ruleId,omitempty"`
+	Type               string `json:"type,omitempty"`
+	TypeId             string `json:"typeId,omitempty"`
+	InstanceId         string `json:"instanceId,omitempty"`
+}
+
+type TriggerVariableMappings struct {
+	DeviceType  string `json:"deviceType,omitempty"`
+	Temperature string `json:"temperature,omitempty"`
+	Humidity    string `json:"humidity,omitempty"`
+	Weight      string `json:"weight,omitempty"`
+	InterfaceId string `json:"InterfaceId,omitempty"`
+	DeviceId    string `json:"deviceId,omitempty"`
+	Timestamp   string `json:"timestamp,omitempty"`
 }

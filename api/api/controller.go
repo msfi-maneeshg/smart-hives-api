@@ -24,6 +24,9 @@ import (
 )
 
 const IOTURL = "https://a-8l173e-otjztnyacu:ChLq7u0pO+*hl7JER_@8l173e.internetofthings.ibmcloud.com/api/v0002/"
+const EVENT_TYPE_ID = "615d3165cf7abe0fa1cabe73"
+const SCHEMA_ID = "615d3164cf7abe0fa1cabe72"
+const ACTION_ID = "615d33202086e476fbb9b550"
 
 func ProcessFarmerData(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -229,9 +232,7 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 
 // CreateNewDeviceType:
 func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
-
-	// connectDeviceTypeWithPI(w, r, "61656a87ed66dc6022adad22")
-	addNotificationRules(w, r, "6165712dcf7abe0fa1cabea2")
+	createPhysicalInterface(w, r)
 	return
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
@@ -322,7 +323,7 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
-func createEventSchema(w http.ResponseWriter) {
+func createEventSchema(w http.ResponseWriter, r *http.Request) {
 	endpoint := IOTURL + "draft/schemas"
 	// New multipart writer.
 	body := &bytes.Buffer{}
@@ -353,7 +354,7 @@ func createEventSchema(w http.ResponseWriter) {
 	writer.Close()
 
 	client := &http.Client{}
-	r, err := http.NewRequest("POST", endpoint, bytes.NewReader(body.Bytes())) // URL-encoded payload
+	r, err = http.NewRequest("POST", endpoint, bytes.NewReader(body.Bytes())) // URL-encoded payload
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -376,12 +377,12 @@ func createEventSchema(w http.ResponseWriter) {
 	return
 }
 
-func createEventType(w http.ResponseWriter) {
+func createEventType(w http.ResponseWriter, r *http.Request) {
 	url := IOTURL + "draft/event/types/"
 
 	var objEventType CreateInterface
 	objEventType.Name = "HiveEvent"
-	objEventType.SchemaId = "615d3164cf7abe0fa1cabe72"
+	objEventType.SchemaId = SCHEMA_ID
 
 	// Create client
 	client := &http.Client{}
@@ -449,21 +450,23 @@ func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var objOutputInterfaceInfo OutputInterfaceInfo
-	_ = json.Unmarshal(body, &objOutputInterfaceInfo)
+	if resp.StatusCode == http.StatusCreated {
+		var objOutputInterfaceInfo OutputInterfaceInfo
+		_ = json.Unmarshal(body, &objOutputInterfaceInfo)
 
-	connectEventTypeWithPI(w, r, objOutputInterfaceInfo.ID)
+		connectEventTypeWithPI(w, r, objOutputInterfaceInfo.ID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
 func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
-	//vars := mux.Vars(r)
-	//var deviceType = vars["deviceType"]
-
 	url := IOTURL + "draft/physicalinterfaces/" + physicalInterfaceID + "/events"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.EventId = "HiveEvent"
-	objCreateInterface.EventTypeId = "615d3165cf7abe0fa1cabe73"
+	objCreateInterface.EventTypeId = EVENT_TYPE_ID
 
 	// Create client
 	client := &http.Client{}
@@ -486,7 +489,18 @@ func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInte
 	}
 	defer resp.Body.Close()
 
-	connectDeviceTypeWithPI(w, r, physicalInterfaceID)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	if resp.StatusCode == http.StatusCreated {
+		connectDeviceTypeWithPI(w, r, physicalInterfaceID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
 func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
@@ -525,10 +539,15 @@ func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInt
 		return
 	}
 
-	common.APIResponse(w, http.StatusOK, string(body))
+	if resp.StatusCode == http.StatusCreated {
+		createLogicalInterface(w, r)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
-func connectLogicalInterface(w http.ResponseWriter, r *http.Request, schemaId string) {
+func createLogicalInterface(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
@@ -537,7 +556,7 @@ func connectLogicalInterface(w http.ResponseWriter, r *http.Request, schemaId st
 	var objCreateInterface CreateInterface
 	objCreateInterface.Name = deviceType + "_LI"
 	objCreateInterface.Alias = deviceType + "_LI"
-	objCreateInterface.SchemaId = schemaId
+	objCreateInterface.SchemaId = SCHEMA_ID
 
 	// Create client
 	client := &http.Client{}
@@ -566,11 +585,16 @@ func connectLogicalInterface(w http.ResponseWriter, r *http.Request, schemaId st
 		return
 	}
 
-	var objOutputInterfaceInfo OutputInterfaceInfo
-	_ = json.Unmarshal(body, &objOutputInterfaceInfo)
-	//common.APIResponse(w, http.StatusOK, objOutputInterfaceInfo)
+	if resp.StatusCode == http.StatusCreated {
 
-	connectDeviceTypeWithLI(w, r, objOutputInterfaceInfo.ID)
+		var objOutputInterfaceInfo OutputInterfaceInfo
+		_ = json.Unmarshal(body, &objOutputInterfaceInfo)
+
+		connectDeviceTypeWithLI(w, r, objOutputInterfaceInfo.ID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
 func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
@@ -602,15 +626,17 @@ func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinte
 		return
 	}
 	defer resp.Body.Close()
-
-	/*body, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
 		return
-	}*/
-
-	// common.APIResponse(w, http.StatusOK, string(body))
-	defineMapping(w, r, logicalinterfaceID)
+	}
+	if resp.StatusCode == http.StatusCreated {
+		defineMapping(w, r, logicalinterfaceID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
 func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
@@ -622,9 +648,11 @@ func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID st
 	var objCreateInterface CreateInterface
 	objCreateInterface.LogicalInterfaceId = logicalinterfaceID
 	objCreateInterface.NotificationStrategy = "on-state-change"
-	objCreateInterface.PropertyMappings.HiveEvent.Humidity = "$event.humidity"
-	objCreateInterface.PropertyMappings.HiveEvent.Weight = "$event.weight"
-	objCreateInterface.PropertyMappings.HiveEvent.Temperature = "$event.temperature"
+	var objPropertyMappings PropertyMappings
+	objPropertyMappings.HiveEvent.Humidity = "$event.humidity"
+	objPropertyMappings.HiveEvent.Weight = "$event.weight"
+	objPropertyMappings.HiveEvent.Temperature = "$event.temperature"
+	objCreateInterface.PropertyMappings = &objPropertyMappings
 	// Create client
 	client := &http.Client{}
 
@@ -645,57 +673,21 @@ func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID st
 		return
 	}
 	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
 		return
 	}
 
-	common.APIResponse(w, http.StatusOK, string(body))
-}
-
-func activateInterface(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
-	url := IOTURL + "draft/device/types/" + deviceType
-
-	var objActivateInterface ActivateInterface
-	objActivateInterface.Operation = "activate-configuration"
-	// Create client
-	client := &http.Client{}
-
-	objByte, _ := json.Marshal(objActivateInterface)
-
-	// Create request
-	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(objByte))
-	if err != nil {
-		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+	if resp.StatusCode == http.StatusCreated {
+		addNotificationRules(w, r, logicalinterfaceID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
-	req.Header.Add("Content-Type", "application/json")
-
-	// Fetch Request
-	resp, err := client.Do(req)
-	if err != nil {
-		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
-		return
-	}
-
-	common.APIResponse(w, http.StatusOK, string(body))
 }
 
 func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-	// vars := mux.Vars(r)
-	// var deviceType = vars["deviceType"]
 
 	url := IOTURL + "draft/logicalinterfaces/" + logicalinterfaceID + "/rules"
 
@@ -750,17 +742,116 @@ func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfa
 			return
 		}
 		defer resp.Body.Close()
-
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
 			return
 		}
-
-		common.APIResponse(w, http.StatusOK, string(body))
+		if resp.StatusCode != http.StatusCreated {
+			common.APIErrorResponse(w, resp.StatusCode, body)
+			//return
+		}
 	}
 
-	activateInterface(w, r)
+	activateInterface(w, r, logicalinterfaceID)
+}
+
+func activateInterface(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "draft/device/types/" + deviceType
+
+	var objActivateInterface ActivateInterface
+	objActivateInterface.Operation = "activate-configuration"
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objActivateInterface)
+
+	// Create request
+	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	if resp.StatusCode == http.StatusAccepted {
+		addActionTrigger(w, r, logicalinterfaceID)
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
+}
+
+func addActionTrigger(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
+	vars := mux.Vars(r)
+	var deviceType = vars["deviceType"]
+
+	url := IOTURL + "actions/" + ACTION_ID + "/triggers"
+
+	var objActionTrigger ActionTrigger
+	objActionTrigger.Name = deviceType + " Trigger"
+	objActionTrigger.Description = "Call notification action"
+	objActionTrigger.Type = "rule"
+	objActionTrigger.Enabled = "true"
+	objActionTrigger.Configuration.LogicalInterfaceId = logicalinterfaceID
+	objActionTrigger.Configuration.RuleId = "*"
+	objActionTrigger.Configuration.InstanceId = "*"
+	objActionTrigger.Configuration.Type = "*"
+	objActionTrigger.Configuration.TypeId = "*"
+	objActionTrigger.VariableMappings.DeviceType = "$event.typeId"
+	objActionTrigger.VariableMappings.DeviceId = "$event.instanceId"
+	objActionTrigger.VariableMappings.Temperature = "$event.state.temperature"
+	objActionTrigger.VariableMappings.Humidity = "$event.state.humidity"
+	objActionTrigger.VariableMappings.Weight = "$event.state.weight"
+	objActionTrigger.VariableMappings.InterfaceId = "$event.logicalInterfaceId"
+	objActionTrigger.VariableMappings.Timestamp = "$event.timestamp"
+	// Create client
+	client := &http.Client{}
+
+	objByte, _ := json.Marshal(objActionTrigger)
+
+	// Create request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(objByte))
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error:"+err.Error())
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		common.APIResponse(w, resp.StatusCode, "Error:"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
+		return
+	}
+
+	common.APIErrorResponse(w, resp.StatusCode, body)
+	return
+
 }
 
 // CreateNewDevice:
