@@ -39,13 +39,12 @@ func main() {
 	router.HandleFunc("/process/{farmer}", api.ProcessFarmerData).Methods("GET")
 	router.HandleFunc("/hive-data/{farmer}/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
 
-	router.HandleFunc("/iot/device-type/{deviceType}", api.GetDeviceType).Methods("GET")
-	router.HandleFunc("/iot/device-list/{deviceType}", api.GetDeviceList).Methods("GET")
-	router.HandleFunc("/iot/device-info/{deviceType}/{deviceID}", api.GetDeviceInfo).Methods("GET")
+	router.HandleFunc("/iot/device/types/{deviceType}", api.GetDeviceType).Methods("GET")
+	router.HandleFunc("/iot/device/types/{deviceType}", api.CreateNewDeviceType).Methods("POST")
 
-	router.HandleFunc("/iot/create-device-type/{deviceType}", api.CreateNewDeviceType).Methods("POST")
-	router.HandleFunc("/iot/create-device/{deviceType}", api.CreateNewDevice).Methods("POST")
-
+	router.HandleFunc("/iot/device/types/{deviceType}/devices", api.GetDeviceList).Methods("GET")
+	router.HandleFunc("/iot/device/types/{deviceType}/devices", api.CreateNewDevice).Methods("POST")
+	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.GetDeviceInfo).Methods("GET")
 	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.DeleteDeviceInfo).Methods("DELETE")
 	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.UpdateDeviceInfo).Methods("PUT")
 

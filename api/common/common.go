@@ -14,7 +14,7 @@ type Response struct {
 //APIResponse : to send response in request
 func APIResponse(w http.ResponseWriter, status int, output interface{}) {
 	var objResponce Response
-	if status == http.StatusOK {
+	if status == http.StatusOK || status == http.StatusCreated || status == http.StatusAccepted {
 		objResponce.Content = output
 	} else {
 		objResponce.Error = output

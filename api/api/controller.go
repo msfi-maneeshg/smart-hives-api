@@ -232,16 +232,12 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 
 // CreateNewDeviceType:
 func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
-	createPhysicalInterface(w, r)
-	return
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	url := IOTURL + "device/types"
 	deviceTypeStatus := isDeviceTypeExist(deviceType)
 	if deviceTypeStatus {
-		message := []byte(`{"msg":"FarmerID is already exist"}`)
-		w.WriteHeader(400)
-		w.Write(message)
+		common.APIResponse(w, http.StatusBadRequest, "FarmerID is already exist")
 		return
 	}
 
@@ -249,25 +245,18 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 	objNewDeviceType.ID = deviceType
 	objNewDeviceType.ClassId = "Device"
 	objNewDeviceType.Description = "Hives for " + deviceType
-	/*objNewDeviceType.Metadata.MaximumHumidity = 70
-	objNewDeviceType.Metadata.MinimumHumidity = 30
-	objNewDeviceType.Metadata.MaximumTemperature = 45
-	objNewDeviceType.Metadata.MinimumTemperature = 35
-	objNewDeviceType.Metadata.MaximumWeight = 200
-	objNewDeviceType.Metadata.MinimumWeight = 50*/
 
 	//-----------add new device
 	objByte, _ := json.Marshal(objNewDeviceType)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
 	if err != nil {
-		fmt.Println("error Body:", err.Error())
+		common.APIResponse(w, http.StatusBadRequest, "Something went wrong")
+		return
 	}
 	defer resp.Body.Close()
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		message := []byte(`{"msg":"Error while creating new device"}`)
-		w.WriteHeader(500)
-		w.Write(message)
+		common.APIResponse(w, http.StatusInternalServerError, "Error while creating new device")
 		return
 	}
 
@@ -283,14 +272,13 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 		objByte, _ = json.Marshal(objCreateDestination)
 		resp, err = http.Post(createDestinationURL, "application/json", bytes.NewBuffer(objByte))
 		if err != nil {
-			fmt.Println("error Body:", err.Error())
+			common.APIResponse(w, http.StatusInternalServerError, "Error while creating destination")
+			return
 		}
 		defer resp.Body.Close()
 		_, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			message := []byte(`{"msg":"Error while creating destination"}`)
-			w.WriteHeader(500)
-			w.Write(message)
+			common.APIResponse(w, http.StatusInternalServerError, "Error while creating destination")
 			return
 		}
 
@@ -306,21 +294,18 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 		objByte, _ = json.Marshal(objCreateForwardingRule)
 		resp, err = http.Post(createForwardingURL, "application/json", bytes.NewBuffer(objByte))
 		if err != nil {
-			fmt.Println("error Body:", err.Error())
+			common.APIResponse(w, http.StatusInternalServerError, "Error while creating forwardingrules")
+			return
 		}
 		defer resp.Body.Close()
 		_, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			message := []byte(`{"msg":"Error while creating forwarding rules"}`)
-			w.WriteHeader(500)
-			w.Write(message)
+			common.APIResponse(w, http.StatusInternalServerError, "Error while creating forwardingrules")
 			return
 		}
 	}
-	message := []byte(`{"msg":"Farmer is added"}`)
-	w.WriteHeader(200)
-	w.Write(message)
-	w.Header().Set("Content-Type", "application/json")
+
+	createPhysicalInterface(w, r)
 }
 
 func createEventSchema(w http.ResponseWriter, r *http.Request) {
@@ -708,14 +693,6 @@ func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfa
 			Name:      "maximumHumidity",
 			Condition: "$state.humidity > $instance.metadata.maximumHumidity",
 		},
-		{
-			Name:      "minimumWeight",
-			Condition: "$state.weight < $instance.metadata.minimumWeight",
-		},
-		{
-			Name:      "maximumWeight",
-			Condition: "$state.weight > $instance.metadata.maximumWeight",
-		},
 	}
 
 	for _, objNotificationRules := range allNotificationRules {
@@ -848,10 +825,13 @@ func addActionTrigger(w http.ResponseWriter, r *http.Request, logicalinterfaceID
 		common.APIResponse(w, http.StatusInternalServerError, "Error"+err.Error())
 		return
 	}
-
-	common.APIErrorResponse(w, resp.StatusCode, body)
-	return
-
+	if resp.StatusCode == http.StatusCreated {
+		common.APIResponse(w, http.StatusCreated, "Farmer is added!")
+		return
+	} else {
+		common.APIErrorResponse(w, resp.StatusCode, body)
+		return
+	}
 }
 
 // CreateNewDevice:
