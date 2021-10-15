@@ -48,7 +48,8 @@ func main() {
 }
 
 func getDeviceTypes() (objBulkDeviceOutput BulkDeviceOutput) {
-	url := IOTURL + "bulk/devices?typeId=farmer-1"
+	url := IOTURL + "bulk/devices"
+	// url := IOTURL + "bulk/devices?typeId=farmer-1"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -86,17 +87,24 @@ func publishEvent(i int, deviceInfo BulkDeviceResult, wg *sync.WaitGroup) {
 	}
 
 	var objPayload Payload
+	initialWeight := 50.0
 	for {
-
-		objPayload.Humidity = rand.Intn(100)
-		objPayload.Temperature = rand.Intn(100)
-		objPayload.Weight = rand.Intn(200)
+		objPayload.Humidity = getRandomNumber(30, 70)
+		objPayload.Temperature = getRandomNumber(30, 50)
+		objPayload.Weight = int(initialWeight)
 		objPayloadByte, _ := json.Marshal(objPayload)
 		fmt.Println("EventData send for ("+deviceInfo.TypeId+","+deviceInfo.DeviceId+")", string(objPayloadByte))
 		token := c.Publish(topicName, 0, false, string(objPayloadByte))
 		token.Wait()
-
-		time.Sleep(5 * time.Second)
+		initialWeight = initialWeight + (float64(getRandomNumber(0, 50)) / float64(100))
+		if initialWeight > 200 {
+			initialWeight = 50.0
+		}
+		time.Sleep(20 * time.Second)
 	}
 
+}
+
+func getRandomNumber(min, max int) int {
+	return rand.Intn(max-min) + min
 }

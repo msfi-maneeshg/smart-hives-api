@@ -23,11 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-const IOTURL = "https://a-8l173e-otjztnyacu:ChLq7u0pO+*hl7JER_@8l173e.internetofthings.ibmcloud.com/api/v0002/"
-const EVENT_TYPE_ID = "615d3165cf7abe0fa1cabe73"
-const SCHEMA_ID = "615d3164cf7abe0fa1cabe72"
-const ACTION_ID = "615d33202086e476fbb9b550"
-
+// ProcessFarmerData:
 func ProcessFarmerData(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var farmer = vars["farmer"]
@@ -115,6 +111,7 @@ func ProcessFarmerData(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(string(b))
 }
 
+// ProcessedFarmerData:
 func ProcessedFarmerData(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var farmer = vars["farmer"]
@@ -150,12 +147,13 @@ func ProcessedFarmerData(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// GetDeviceLastEvent:
 func GetDeviceLastEvent(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	var deviceId = vars["deviceId"]
 
-	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceId + "/events"
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceId + "/events"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -194,8 +192,9 @@ func GetDeviceLastEvent(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// GetDeviceTypes:
 func GetDeviceTypes(w http.ResponseWriter, r *http.Request) {
-	url := IOTURL + "device/types"
+	url := common.IOT_URL + "device/types"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -211,10 +210,11 @@ func GetDeviceTypes(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// GetDevices:
 func GetDevices(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
-	url := IOTURL + "device/types/" + deviceType + "/devices"
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -234,7 +234,7 @@ func GetDevices(w http.ResponseWriter, r *http.Request) {
 func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
-	url := IOTURL + "device/types"
+	url := common.IOT_URL + "device/types"
 	deviceTypeStatus := isDeviceTypeExist(deviceType)
 	if deviceTypeStatus {
 		common.APIResponse(w, http.StatusBadRequest, "FarmerID is already exist")
@@ -268,7 +268,7 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 		objCreateDestination.Type = "cloudant"
 		objCreateDestination.Configuration.BucketInterval = "DAY"
 
-		createDestinationURL := IOTURL + "historianconnectors/615a95d64a0b1217f089043c/destinations"
+		createDestinationURL := common.IOT_URL + "historianconnectors/615a95d64a0b1217f089043c/destinations"
 		objByte, _ = json.Marshal(objCreateDestination)
 		resp, err = http.Post(createDestinationURL, "application/json", bytes.NewBuffer(objByte))
 		if err != nil {
@@ -290,7 +290,7 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 		objCreateForwardingRule.Selector.DeviceType = deviceType
 		objCreateForwardingRule.Selector.EventId = "HiveEvent"
 
-		createForwardingURL := IOTURL + "historianconnectors/615a95d64a0b1217f089043c/forwardingrules"
+		createForwardingURL := common.IOT_URL + "historianconnectors/615a95d64a0b1217f089043c/forwardingrules"
 		objByte, _ = json.Marshal(objCreateForwardingRule)
 		resp, err = http.Post(createForwardingURL, "application/json", bytes.NewBuffer(objByte))
 		if err != nil {
@@ -309,7 +309,7 @@ func CreateNewDeviceType(w http.ResponseWriter, r *http.Request) {
 }
 
 func createEventSchema(w http.ResponseWriter, r *http.Request) {
-	endpoint := IOTURL + "draft/schemas"
+	endpoint := common.IOT_URL + "draft/schemas"
 	// New multipart writer.
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -363,11 +363,11 @@ func createEventSchema(w http.ResponseWriter, r *http.Request) {
 }
 
 func createEventType(w http.ResponseWriter, r *http.Request) {
-	url := IOTURL + "draft/event/types/"
+	url := common.IOT_URL + "draft/event/types/"
 
 	var objEventType CreateInterface
 	objEventType.Name = "HiveEvent"
-	objEventType.SchemaId = SCHEMA_ID
+	objEventType.SchemaId = common.SCHEMA_ID
 
 	// Create client
 	client := &http.Client{}
@@ -403,7 +403,7 @@ func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/physicalinterfaces"
+	url := common.IOT_URL + "draft/physicalinterfaces"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.Name = deviceType + "_PI"
@@ -447,11 +447,11 @@ func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
 }
 
 func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
-	url := IOTURL + "draft/physicalinterfaces/" + physicalInterfaceID + "/events"
+	url := common.IOT_URL + "draft/physicalinterfaces/" + physicalInterfaceID + "/events"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.EventId = "HiveEvent"
-	objCreateInterface.EventTypeId = EVENT_TYPE_ID
+	objCreateInterface.EventTypeId = common.EVENT_TYPE_ID
 
 	// Create client
 	client := &http.Client{}
@@ -492,7 +492,7 @@ func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInt
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/device/types/" + deviceType + "/physicalinterface"
+	url := common.IOT_URL + "draft/device/types/" + deviceType + "/physicalinterface"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.ID = physicalInterfaceID
@@ -536,12 +536,12 @@ func createLogicalInterface(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/logicalinterfaces/"
+	url := common.IOT_URL + "draft/logicalinterfaces/"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.Name = deviceType + "_LI"
 	objCreateInterface.Alias = deviceType + "_LI"
-	objCreateInterface.SchemaId = SCHEMA_ID
+	objCreateInterface.SchemaId = common.SCHEMA_ID
 
 	// Create client
 	client := &http.Client{}
@@ -586,7 +586,7 @@ func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinte
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/device/types/" + deviceType + "/logicalinterfaces"
+	url := common.IOT_URL + "draft/device/types/" + deviceType + "/logicalinterfaces"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.ID = logicalinterfaceID
@@ -628,7 +628,7 @@ func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID st
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/device/types/" + deviceType + "/mappings"
+	url := common.IOT_URL + "draft/device/types/" + deviceType + "/mappings"
 
 	var objCreateInterface CreateInterface
 	objCreateInterface.LogicalInterfaceId = logicalinterfaceID
@@ -674,7 +674,7 @@ func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID st
 
 func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
 
-	url := IOTURL + "draft/logicalinterfaces/" + logicalinterfaceID + "/rules"
+	url := common.IOT_URL + "draft/logicalinterfaces/" + logicalinterfaceID + "/rules"
 
 	allNotificationRules := []NotificationRules{
 		{
@@ -737,7 +737,7 @@ func activateInterface(w http.ResponseWriter, r *http.Request, logicalinterfaceI
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "draft/device/types/" + deviceType
+	url := common.IOT_URL + "draft/device/types/" + deviceType
 
 	var objActivateInterface ActivateInterface
 	objActivateInterface.Operation = "activate-configuration"
@@ -780,7 +780,7 @@ func addActionTrigger(w http.ResponseWriter, r *http.Request, logicalinterfaceID
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 
-	url := IOTURL + "actions/" + ACTION_ID + "/triggers"
+	url := common.IOT_URL + "actions/" + common.ACTION_ID + "/triggers"
 
 	var objActionTrigger ActionTrigger
 	objActionTrigger.Name = deviceType + " Trigger"
@@ -864,7 +864,7 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//-----------add new device
-	url := IOTURL + "device/types/" + deviceType + "/devices"
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
 	objByte, _ := json.Marshal(objCreateNewDevice)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
 	if err != nil {
@@ -881,11 +881,11 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 	common.APIResponse(w, http.StatusOK, "Farmer's Device is added!")
 }
 
-//GetDeviceType
+// GetDeviceType:
 func GetDeviceType(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
-	url := IOTURL + "device/types/" + deviceType
+	url := common.IOT_URL + "device/types/" + deviceType
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -901,11 +901,11 @@ func GetDeviceType(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//GetDeviceList
+// GetDeviceList:
 func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
-	url := IOTURL + "device/types/" + deviceType + "/devices"
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -921,13 +921,13 @@ func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//GetDeviceInfo
+// GetDeviceInfo:
 func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
 
-	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -951,13 +951,13 @@ func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-//DeleteDeviceInfo
+// DeleteDeviceInfo:
 func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
 
-	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
 
 	// Create client
 	client := &http.Client{}
@@ -1015,7 +1015,7 @@ func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//-----------add new device
-	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
 	objByte, _ := json.Marshal(objCreateNewDevice)
 
 	// Create client
@@ -1039,11 +1039,10 @@ func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	common.APIResponse(w, http.StatusOK, "Device info has been updated!")
-
 }
 
 func isDeviceTypeExist(deviceType string) (status bool) {
-	url := IOTURL + "device/types/" + deviceType
+	url := common.IOT_URL + "device/types/" + deviceType
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("error Body:", err.Error())
@@ -1057,7 +1056,7 @@ func isDeviceTypeExist(deviceType string) (status bool) {
 }
 
 func isDeviceExist(deviceType, deviceID string) (status bool) {
-	url := IOTURL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("error Body:", err.Error())
@@ -1072,7 +1071,7 @@ func isDeviceExist(deviceType, deviceID string) (status bool) {
 
 func isDestinationExist(deviceType string) (status bool) {
 	serviceID := "615a95d64a0b1217f089043c"
-	url := IOTURL + serviceID + "/destinations/" + deviceType
+	url := common.IOT_URL + serviceID + "/destinations/" + deviceType
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("error Body:", err.Error())
@@ -1083,4 +1082,63 @@ func isDestinationExist(deviceType string) (status bool) {
 	}
 
 	return status
+}
+
+// Register:
+func Register(w http.ResponseWriter, r *http.Request) {
+	var objFarmerProfileDetails FarmerProfileDetails
+
+	//------check body request
+	if r.Body == nil {
+		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
+		return
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
+		return
+	}
+
+	if objFarmerProfileDetails.Username == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid username")
+		return
+	}
+
+	if objFarmerProfileDetails.Password == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid password")
+		return
+	}
+
+	if objFarmerProfileDetails.Email == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid email")
+		return
+	}
+
+	isValid := common.IsEmailValid(objFarmerProfileDetails.Email)
+	if !isValid {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid email address")
+		return
+	}
+
+	isStrong := common.IsPasswordStrong(objFarmerProfileDetails.Password)
+	if !isStrong {
+		common.APIResponse(w, http.StatusBadRequest, "Password is not strong")
+		return
+	}
+
+	objProfile := GetFarmerProfile(objFarmerProfileDetails.Email)
+	if objProfile != (FarmerProfileDetails{}) {
+		common.APIResponse(w, http.StatusBadRequest, "Email address already used.")
+		return
+	}
+
+	//--------create profile
+	err = CreateNewProfile(objFarmerProfileDetails)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "There is an error while creating ptofile :"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusCreated, "Profile Created.")
 }

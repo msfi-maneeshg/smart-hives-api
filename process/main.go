@@ -6,6 +6,7 @@ import (
 	"smart-hives/process/aggregated"
 	"smart-hives/process/database"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -23,7 +24,10 @@ func main() {
 		}
 	}
 
-	
 	database.ConnectDatabase("smart-hives")
-	aggregated.ProcessFarmerData(farmer)
+	for {
+		aggregated.ProcessFarmerData(farmer)
+		time.Sleep(30 * time.Minute)
+	}
+
 }

@@ -7,4 +7,5 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/rs/cors v1.8.0
 	go.mongodb.org/mongo-driver v1.7.1
+	gopkg.in/go-playground/validator.v9 v9.31.0
 )

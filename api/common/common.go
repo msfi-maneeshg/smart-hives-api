@@ -23,7 +23,6 @@ func APIResponse(w http.ResponseWriter, status int, output interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(finalOutput)
-	return
 }
 
 //APIErrorResponse : to send response in request
@@ -31,5 +30,5 @@ func APIErrorResponse(w http.ResponseWriter, status int, output []byte) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(output)
-	return
 }
+
