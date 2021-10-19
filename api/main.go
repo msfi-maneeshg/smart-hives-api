@@ -49,16 +49,18 @@ func handleRouter(router *mux.Router) {
 	router.HandleFunc("/device-types", api.GetDeviceTypes).Methods("GET")
 	router.HandleFunc("/devices/{deviceType}", api.GetDevices).Methods("GET")
 	router.HandleFunc("/process/{farmer}", api.ProcessFarmerData).Methods("GET")
-	router.HandleFunc("/hive-data/{farmer}/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
+	router.HandleFunc("/hive-data/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
 
 	router.HandleFunc("/register", api.Register).Methods("POST")
+	router.HandleFunc("/login", api.Login).Methods("POST")
+	router.HandleFunc("/refresh-token", api.RefreshToken).Methods("POST")
 
 	router.HandleFunc("/iot/device/types/{deviceType}", api.GetDeviceType).Methods("GET")
 	router.HandleFunc("/iot/device/types/{deviceType}", api.CreateNewDeviceType).Methods("POST")
 
-	router.HandleFunc("/iot/device/types/{deviceType}/devices", api.GetDeviceList).Methods("GET")
-	router.HandleFunc("/iot/device/types/{deviceType}/devices", api.CreateNewDevice).Methods("POST")
-	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.GetDeviceInfo).Methods("GET")
-	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.DeleteDeviceInfo).Methods("DELETE")
-	router.HandleFunc("/iot/device/types/{deviceType}/devices/{deviceID}", api.UpdateDeviceInfo).Methods("PUT")
+	router.HandleFunc("/devices", api.GetDeviceList).Methods("GET")
+	router.HandleFunc("/devices", api.CreateNewDevice).Methods("POST")
+	router.HandleFunc("/devices/{deviceID}", api.GetDeviceInfo).Methods("GET")
+	router.HandleFunc("/devices/{deviceID}", api.DeleteDeviceInfo).Methods("DELETE")
+	router.HandleFunc("/devices/{deviceID}", api.UpdateDeviceInfo).Methods("PUT")
 }

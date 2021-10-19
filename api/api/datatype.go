@@ -187,3 +187,10 @@ type FarmerProfileDetails struct {
 	Email    string `json:"email" bson:"email"`
 	Password string `json:"password" bson:"password"`
 }
+
+type UserSession struct {
+	UserToken     string `json:"usertoken,omitempty"`
+	RefereshToken string `json:"refereshtoken,omitempty"`
+	Username      string `json:"username,omitempty"`
+	Email         string `json:"email,omitempty"`
+}

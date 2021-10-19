@@ -1,5 +1,11 @@
 package common
 
+import "time"
+
+const MY_KEY = "smarthives"
+const REFERESH_KEY = "referesh-smarthives"
+const EXPIRE_TIME time.Duration = 1
+
 const (
 	IOT_USERNAME  = "a-8l173e-otjztnyacu"
 	IOT_PASSWORD  = "ChLq7u0pO+*hl7JER_"
@@ -8,7 +14,6 @@ const (
 	SCHEMA_ID     = "615d3164cf7abe0fa1cabe72"
 	ACTION_ID     = "615d33202086e476fbb9b550"
 )
-
 
 const (
 	PROFILES = "profiles"

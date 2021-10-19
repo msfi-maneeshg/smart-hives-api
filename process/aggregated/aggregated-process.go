@@ -24,8 +24,8 @@ func ProcessFarmerData(farmer string) {
 	var currentDateTime = time.Now().UTC()
 
 	if farmer == "" {
-		fmt.Println("Error: Farmer value can not be empty!")
-		return
+		//fmt.Println("Error: Farmer value can not be empty!")
+		//return
 	}
 
 	//---------get the all iot device type

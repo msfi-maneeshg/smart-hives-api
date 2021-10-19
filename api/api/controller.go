@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
+
 	"github.com/IBM/cloudant-go-sdk/auth"
 	"github.com/IBM/cloudant-go-sdk/cloudantv1"
 	"github.com/gorilla/mux"
@@ -113,12 +115,17 @@ func ProcessFarmerData(w http.ResponseWriter, r *http.Request) {
 
 // ProcessedFarmerData:
 func ProcessedFarmerData(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
 	vars := mux.Vars(r)
-	var farmer = vars["farmer"]
 	var date = vars["date"]
 	var period = vars["period"]
 
-	collection := database.Data.Collection(farmer)
+	collection := database.Data.Collection(userInfo.Username)
 	filterData := bson.D{{"date", date}, {"period", period}}
 	cur, err := collection.Find(context.Background(), filterData)
 	if err != nil {
@@ -903,9 +910,13 @@ func GetDeviceType(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceList:
 func GetDeviceList(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
+	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices"
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -923,11 +934,16 @@ func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceInfo:
 func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
 	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
 
-	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices/" + deviceID
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -953,11 +969,16 @@ func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
 
 // DeleteDeviceInfo:
 func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
 	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
 
-	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices/" + deviceID
 
 	// Create client
 	client := &http.Client{}
@@ -991,10 +1012,16 @@ func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
 
 // UpdateDeviceInfo:
 func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
+
 	var err error
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
 	var objCreateNewDevice NewDeviceInfo
 	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
 	var deviceID = vars["deviceID"]
 
 	//------check body request
@@ -1008,14 +1035,14 @@ func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	checkDeviceStatus := isDeviceExist(deviceType, deviceID)
+	checkDeviceStatus := isDeviceExist(userInfo.Username, deviceID)
 	if !checkDeviceStatus {
 		common.APIResponse(w, http.StatusBadRequest, "DeviceID not found!")
 		return
 	}
 
 	//-----------add new device
-	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
+	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices/" + deviceID
 	objByte, _ := json.Marshal(objCreateNewDevice)
 
 	// Create client
@@ -1086,6 +1113,13 @@ func isDestinationExist(deviceType string) (status bool) {
 
 // Register:
 func Register(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+	common.APIResponse(w, http.StatusOK, userInfo)
+	return
 	var objFarmerProfileDetails FarmerProfileDetails
 
 	//------check body request
@@ -1094,7 +1128,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
+	err = json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
 	if err != nil {
 		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
 		return
@@ -1127,9 +1161,15 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objProfile := GetFarmerProfile(objFarmerProfileDetails.Email)
+	objProfile := GetFarmerProfile(objFarmerProfileDetails.Email, "")
 	if objProfile != (FarmerProfileDetails{}) {
 		common.APIResponse(w, http.StatusBadRequest, "Email address already used.")
+		return
+	}
+
+	objProfile = GetFarmerProfile("", objFarmerProfileDetails.Username)
+	if objProfile != (FarmerProfileDetails{}) {
+		common.APIResponse(w, http.StatusBadRequest, "Username already used.")
 		return
 	}
 
@@ -1141,4 +1181,157 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	common.APIResponse(w, http.StatusCreated, "Profile Created.")
+}
+
+// Login:
+func Login(w http.ResponseWriter, r *http.Request) {
+
+	var objFarmerProfileDetails FarmerProfileDetails
+	var objUserSession UserSession
+
+	//------check body request
+	if r.Body == nil {
+		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
+		return
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
+		return
+	}
+
+	if objFarmerProfileDetails.Username == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid username")
+		return
+	}
+
+	if objFarmerProfileDetails.Password == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid password")
+		return
+	}
+
+	objProfile := GetFarmerProfile(objFarmerProfileDetails.Username, "")
+	if objProfile == (FarmerProfileDetails{}) {
+		objProfile = GetFarmerProfile("", objFarmerProfileDetails.Username)
+		if objProfile == (FarmerProfileDetails{}) {
+			common.APIResponse(w, http.StatusBadRequest, "Invalid Credential.")
+			return
+		}
+	}
+
+	if objProfile.Password != objFarmerProfileDetails.Password {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid Credential.")
+		return
+	}
+
+	objUserSession, err = createUserToken(objProfile)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, "Something went wrong Error:"+err.Error())
+		return
+	}
+
+	objUserSession.Email = objProfile.Username
+	objUserSession.Username = objProfile.Email
+
+	common.APIResponse(w, http.StatusOK, objUserSession)
+}
+
+func createUserToken(objProfile FarmerProfileDetails) (objUserSession UserSession, err error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["authorized"] = true
+	claims["username"] = objProfile.Username
+	claims["email"] = objProfile.Email
+	claims["exp"] = time.Now().Add(time.Minute * common.EXPIRE_TIME).Unix()
+
+	objUserSession.UserToken, err = token.SignedString([]byte(common.MY_KEY))
+	if err != nil {
+		return objUserSession, err
+	}
+
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	objUserSession.RefereshToken, err = token.SignedString([]byte(common.REFERESH_KEY))
+	if err != nil {
+		return objUserSession, err
+	}
+
+	return objUserSession, nil
+}
+
+func CheckUserToken(r *http.Request) (objUserSession UserSession, err error) {
+	var userToken string
+	bearToken := r.Header.Get("Authorization")
+	strArr := strings.Split(bearToken, " ")
+
+	if len(strArr) == 2 {
+		userToken = strArr[1]
+	}
+
+	if userToken != "" {
+		token, err := jwt.Parse(userToken, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("%v", "There was an error")
+			}
+			return []byte(common.MY_KEY), nil
+		})
+
+		if err != nil {
+			return objUserSession, err
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+
+		if token.Valid && ok {
+			objUserSession.Username, _ = claims["username"].(string)
+			objUserSession.Email, _ = claims["email"].(string)
+			return objUserSession, nil
+		}
+		return objUserSession, fmt.Errorf("%v", "Invalid token")
+	}
+
+	return objUserSession, fmt.Errorf("%v", "Not Authorized")
+}
+
+func RefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.Header.Get("refreshToken")
+	if refreshToken != "" {
+		token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("%v", "There was an error")
+			}
+			return []byte(common.REFERESH_KEY), nil
+		})
+
+		if err != nil {
+			common.APIResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		var objUserSession UserSession
+		objUserSession.RefereshToken = refreshToken
+		if token.Valid && ok {
+			newToken := jwt.New(jwt.SigningMethodHS256)
+			newClaims := newToken.Claims.(jwt.MapClaims)
+
+			objUserSession.Username, _ = claims["username"].(string)
+			objUserSession.Email, _ = claims["email"].(string)
+
+			newClaims["authorized"] = true
+			newClaims["username"] = objUserSession.Username
+			newClaims["email"] = objUserSession.Email
+			newClaims["exp"] = time.Now().Add(time.Minute * common.EXPIRE_TIME).Unix()
+
+			objUserSession.UserToken, err = newToken.SignedString([]byte(common.MY_KEY))
+			if err != nil {
+				common.APIResponse(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			common.APIResponse(w, http.StatusOK, objUserSession)
+			return
+		}
+	}
+	common.APIResponse(w, http.StatusBadRequest, "Invalid refresh token.")
 }

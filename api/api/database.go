@@ -10,10 +10,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetFarmerProfile(emailID string) (objProfile FarmerProfileDetails) {
+func GetFarmerProfile(emailID, username string) (objProfile FarmerProfileDetails) {
 	collection := database.Data.Collection(common.PROFILES)
 	filterData := bson.D{
 		{"email", emailID},
+	}
+	if username != ""{
+		filterData = bson.D{
+			{"username", username},
+		}
 	}
 
 	err := collection.FindOne(context.TODO(), filterData).Decode(&objProfile)
