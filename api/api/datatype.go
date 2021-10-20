@@ -87,6 +87,11 @@ type ForwardingRuleSelector struct {
 	EventId    string `json:"eventId"`
 }
 
+//DevicesInfo:
+type DevicesInfo struct {
+	Results []NewDeviceInfo `json:"results,omitempty"`
+}
+
 //NewDeviceInfo:
 type NewDeviceInfo struct {
 	DeviceId   string          `json:"deviceId,omitempty"`
