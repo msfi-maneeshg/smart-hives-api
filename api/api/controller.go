@@ -845,9 +845,11 @@ func addActionTrigger(w http.ResponseWriter, r *http.Request, logicalinterfaceID
 func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var objCreateNewDevice NewDeviceInfo
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
 	//------check body request
 	if r.Body == nil {
 		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
@@ -864,14 +866,14 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	checkDeviceStatus := isDeviceExist(deviceType, objCreateNewDevice.DeviceId)
+	checkDeviceStatus := isDeviceExist(userInfo.Username, objCreateNewDevice.DeviceId)
 	if checkDeviceStatus {
 		common.APIResponse(w, http.StatusBadRequest, "DeviceID is already exist!")
 		return
 	}
 
 	//-----------add new device
-	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
+	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices"
 	objByte, _ := json.Marshal(objCreateNewDevice)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(objByte))
 	if err != nil {
@@ -890,9 +892,13 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceType:
 func GetDeviceType(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-	url := common.IOT_URL + "device/types/" + deviceType
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
+	url := common.IOT_URL + "device/types/" + userInfo.Username
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -934,6 +940,7 @@ func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceInfo:
 func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
+
 	userInfo, err := CheckUserToken(r)
 	if err != nil {
 		common.APIResponse(w, http.StatusForbidden, err.Error())
@@ -1012,7 +1019,6 @@ func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
 
 // UpdateDeviceInfo:
 func UpdateDeviceInfo(w http.ResponseWriter, r *http.Request) {
-
 	var err error
 	userInfo, err := CheckUserToken(r)
 	if err != nil {
@@ -1113,13 +1119,6 @@ func isDestinationExist(deviceType string) (status bool) {
 
 // Register:
 func Register(w http.ResponseWriter, r *http.Request) {
-	userInfo, err := CheckUserToken(r)
-	if err != nil {
-		common.APIResponse(w, http.StatusForbidden, err.Error())
-		return
-	}
-	common.APIResponse(w, http.StatusOK, userInfo)
-	return
 	var objFarmerProfileDetails FarmerProfileDetails
 
 	//------check body request
@@ -1128,7 +1127,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
+	err := json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
 	if err != nil {
 		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
 		return

@@ -47,7 +47,7 @@ func main() {
 func handleRouter(router *mux.Router) {
 	router.HandleFunc("/last-event/{deviceType}/{deviceId}", api.GetDeviceLastEvent).Methods("GET")
 	router.HandleFunc("/device-types", api.GetDeviceTypes).Methods("GET")
-	router.HandleFunc("/devices/{deviceType}", api.GetDevices).Methods("GET")
+	//router.HandleFunc("/devices/{deviceType}", api.GetDevices).Methods("GET")
 	router.HandleFunc("/process/{farmer}", api.ProcessFarmerData).Methods("GET")
 	router.HandleFunc("/hive-data/{date}/{period}", api.ProcessedFarmerData).Methods("GET")
 
