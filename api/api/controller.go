@@ -175,6 +175,12 @@ func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 		common.APIResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	if len(objDevicesInfo.Results) == 0 {
+		common.APIResponse(w, http.StatusNotFound, "No device found")
+		return
+	}
+
 	common.APIResponse(w, resp.StatusCode, objDevicesInfo)
 }
 
@@ -435,8 +441,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objUserSession.Email = objProfile.Username
-	objUserSession.Username = objProfile.Email
+	objUserSession.Email = objProfile.Email
+	objUserSession.Username = objProfile.Username
 
 	common.APIResponse(w, http.StatusOK, objUserSession)
 }
@@ -555,7 +561,7 @@ func createNewDeviceType(w http.ResponseWriter, r *http.Request, deviceType stri
 		}
 	}
 
-	createPhysicalInterface(w, r)
+	createPhysicalInterface(w, r, deviceType)
 }
 
 func createEventSchema(w http.ResponseWriter, r *http.Request) {
@@ -648,10 +654,7 @@ func createEventType(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+func createPhysicalInterface(w http.ResponseWriter, r *http.Request, deviceType string) {
 	url := common.IOT_URL + "draft/physicalinterfaces"
 
 	var objCreateInterface CreateInterface
@@ -687,15 +690,14 @@ func createPhysicalInterface(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode == http.StatusCreated {
 		var objOutputInterfaceInfo OutputInterfaceInfo
 		_ = json.Unmarshal(body, &objOutputInterfaceInfo)
-
-		connectEventTypeWithPI(w, r, objOutputInterfaceInfo.ID)
+		connectEventTypeWithPI(w, r, deviceType, objOutputInterfaceInfo.ID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
+func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, deviceType, physicalInterfaceID string) {
 	url := common.IOT_URL + "draft/physicalinterfaces/" + physicalInterfaceID + "/events"
 
 	var objCreateInterface CreateInterface
@@ -730,17 +732,14 @@ func connectEventTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInte
 	}
 
 	if resp.StatusCode == http.StatusCreated {
-		connectDeviceTypeWithPI(w, r, physicalInterfaceID)
+		connectDeviceTypeWithPI(w, r, deviceType, physicalInterfaceID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInterfaceID string) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, deviceType, physicalInterfaceID string) {
 	url := common.IOT_URL + "draft/device/types/" + deviceType + "/physicalinterface"
 
 	var objCreateInterface CreateInterface
@@ -774,17 +773,14 @@ func connectDeviceTypeWithPI(w http.ResponseWriter, r *http.Request, physicalInt
 	}
 
 	if resp.StatusCode == http.StatusCreated {
-		createLogicalInterface(w, r)
+		createLogicalInterface(w, r, deviceType)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func createLogicalInterface(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+func createLogicalInterface(w http.ResponseWriter, r *http.Request, deviceType string) {
 	url := common.IOT_URL + "draft/logicalinterfaces/"
 
 	var objCreateInterface CreateInterface
@@ -823,18 +819,14 @@ func createLogicalInterface(w http.ResponseWriter, r *http.Request) {
 
 		var objOutputInterfaceInfo OutputInterfaceInfo
 		_ = json.Unmarshal(body, &objOutputInterfaceInfo)
-
-		connectDeviceTypeWithLI(w, r, objOutputInterfaceInfo.ID)
+		connectDeviceTypeWithLI(w, r, deviceType, objOutputInterfaceInfo.ID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, deviceType, logicalinterfaceID string) {
 	url := common.IOT_URL + "draft/device/types/" + deviceType + "/logicalinterfaces"
 
 	var objCreateInterface CreateInterface
@@ -866,16 +858,14 @@ func connectDeviceTypeWithLI(w http.ResponseWriter, r *http.Request, logicalinte
 		return
 	}
 	if resp.StatusCode == http.StatusCreated {
-		defineMapping(w, r, logicalinterfaceID)
+		defineMapping(w, r, deviceType, logicalinterfaceID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
+func defineMapping(w http.ResponseWriter, r *http.Request, deviceType, logicalinterfaceID string) {
 
 	url := common.IOT_URL + "draft/device/types/" + deviceType + "/mappings"
 
@@ -914,15 +904,14 @@ func defineMapping(w http.ResponseWriter, r *http.Request, logicalinterfaceID st
 	}
 
 	if resp.StatusCode == http.StatusCreated {
-		addNotificationRules(w, r, logicalinterfaceID)
+		addNotificationRules(w, r, deviceType, logicalinterfaceID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-
+func addNotificationRules(w http.ResponseWriter, r *http.Request, deviceType, logicalinterfaceID string) {
 	url := common.IOT_URL + "draft/logicalinterfaces/" + logicalinterfaceID + "/rules"
 
 	allNotificationRules := []NotificationRules{
@@ -979,12 +968,10 @@ func addNotificationRules(w http.ResponseWriter, r *http.Request, logicalinterfa
 		}
 	}
 
-	activateInterface(w, r, logicalinterfaceID)
+	activateInterface(w, r, deviceType, logicalinterfaceID)
 }
 
-func activateInterface(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
+func activateInterface(w http.ResponseWriter, r *http.Request, deviceType, logicalinterfaceID string) {
 
 	url := common.IOT_URL + "draft/device/types/" + deviceType
 
@@ -1018,17 +1005,14 @@ func activateInterface(w http.ResponseWriter, r *http.Request, logicalinterfaceI
 	}
 
 	if resp.StatusCode == http.StatusAccepted {
-		addActionTrigger(w, r, logicalinterfaceID)
+		addActionTrigger(w, r, deviceType, logicalinterfaceID)
 	} else {
 		common.APIErrorResponse(w, resp.StatusCode, body)
 		return
 	}
 }
 
-func addActionTrigger(w http.ResponseWriter, r *http.Request, logicalinterfaceID string) {
-	vars := mux.Vars(r)
-	var deviceType = vars["deviceType"]
-
+func addActionTrigger(w http.ResponseWriter, r *http.Request, deviceType, logicalinterfaceID string) {
 	url := common.IOT_URL + "actions/" + common.ACTION_ID + "/triggers"
 
 	var objActionTrigger ActionTrigger
