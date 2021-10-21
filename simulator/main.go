@@ -31,20 +31,31 @@ type Payload struct {
 }
 
 func main() {
-	//-------fatching list of devicetypes
-	objBulkDeviceOutput := getDeviceTypes()
-	if len(objBulkDeviceOutput.Results) == 0 {
-		fmt.Println("Alert: No device found!")
-		return
-	}
 	var wg sync.WaitGroup
-	for i, deviceInfo := range objBulkDeviceOutput.Results {
-		wg.Add(1)
-		go publishEvent(i, deviceInfo, &wg)
-		time.Sleep(1 * time.Second)
+	runningThread := map[string]bool{}
+	for {
+		//-------fatching list of devicetypes
+		objBulkDeviceOutput := getDeviceTypes()
+		if len(objBulkDeviceOutput.Results) == 0 {
+			fmt.Println("Alert: No device found!")
+			return
+		}
+
+		for i, deviceInfo := range objBulkDeviceOutput.Results {
+
+			if okay := runningThread[deviceInfo.DeviceId+":"+deviceInfo.TypeId]; okay {
+				continue
+			}
+			runningThread[deviceInfo.DeviceId+":"+deviceInfo.TypeId] = true
+			wg.Add(1)
+			go publishEvent(i, deviceInfo, &wg)
+			time.Sleep(1 * time.Second)
+		}
+
+		time.Sleep(1 * time.Minute)
 	}
-	wg.Wait()
-	fmt.Println("Completed...")
+	// wg.Wait()
+	// fmt.Println("Completed...")
 }
 
 func getDeviceTypes() (objBulkDeviceOutput BulkDeviceOutput) {

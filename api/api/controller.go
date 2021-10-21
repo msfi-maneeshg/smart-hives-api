@@ -393,6 +393,61 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// UpdatePassword:
+func UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	userInfo, err := CheckUserToken(r)
+	if err != nil {
+		common.APIResponse(w, http.StatusForbidden, err.Error())
+		return
+	}
+
+	var objFarmerProfileDetails FarmerProfileDetails
+	//------check body request
+	if r.Body == nil {
+		common.APIResponse(w, http.StatusBadRequest, "Request body can not be blank")
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&objFarmerProfileDetails)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "Error:"+err.Error())
+		return
+	}
+
+	if objFarmerProfileDetails.Password == "" {
+		common.APIResponse(w, http.StatusBadRequest, "Invalid password")
+		return
+	}
+
+	isStrong := common.IsPasswordStrong(objFarmerProfileDetails.Password)
+	if !isStrong {
+		common.APIResponse(w, http.StatusBadRequest, "Password is not strong")
+		return
+	}
+
+	objProfile := GetFarmerProfile(userInfo.Email, "")
+	if objProfile == (FarmerProfileDetails{}) {
+		common.APIResponse(w, http.StatusBadRequest, "Something went wrong.")
+		return
+	}
+
+	objProfile = GetFarmerProfile("", userInfo.Username)
+	if objProfile == (FarmerProfileDetails{}) {
+		common.APIResponse(w, http.StatusBadRequest, "Something went wrong.")
+		return
+	}
+	objFarmerProfileDetails.Email = userInfo.Email
+	objFarmerProfileDetails.Username = userInfo.Username
+
+	//--------create profile
+	err = UpdateUserPassword(objFarmerProfileDetails)
+	if err != nil {
+		common.APIResponse(w, http.StatusBadRequest, "There is an error while updating password :"+err.Error())
+		return
+	}
+
+	common.APIResponse(w, http.StatusOK, "Password has been updated successfully!")
+}
+
 // Login:
 func Login(w http.ResponseWriter, r *http.Request) {
 

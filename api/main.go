@@ -54,6 +54,7 @@ func handleRouter(router *mux.Router) {
 
 	router.HandleFunc("/register", api.Register).Methods("POST")
 	router.HandleFunc("/login", api.Login).Methods("POST")
+	router.HandleFunc("/update-password", api.UpdatePassword).Methods("PUT")
 	router.HandleFunc("/refresh-token", api.RefreshToken).Methods("POST")
 
 	//router.HandleFunc("/iot/device/types/{deviceType}", api.GetDeviceType).Methods("GET")
