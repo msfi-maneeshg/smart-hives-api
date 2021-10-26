@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"smart-hives/api/common"
 	"smart-hives/api/database"
 
@@ -11,6 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// =============================== Internal DB Related Functions ===============================
 
 //GetFarmerProfile :
 func GetFarmerProfile(emailID, username string) (objProfile FarmerProfileDetails) {
@@ -59,5 +64,124 @@ func UpdateUserPassword(objProfile FarmerProfileDetails) (err error) {
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("%v", "username/email not found")
 	}
+	return nil
+}
+
+//DeleteDeviceData :
+func DeleteDeviceData(tableName, deviceID string) (err error) {
+	collection := database.Data.Collection(tableName)
+
+	opts := options.Delete().SetCollation(&options.Collation{
+		Locale:    "en_US",
+		Strength:  1,
+		CaseLevel: false,
+	})
+
+	_, err = collection.DeleteOne(context.TODO(), bson.D{{"deviceID", deviceID}}, opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// =============================== IoT Related Functions ===============================
+
+//GetDevicesForIoT: Getting list of devices from IoT for a specific device type.
+func GetDevicesForIoT(deviceType string) (objDevicesInfo DevicesInfo, err error) {
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return objDevicesInfo, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return objDevicesInfo, err
+	}
+
+	err = json.Unmarshal(body, &objDevicesInfo)
+	if err != nil {
+		return objDevicesInfo, err
+	}
+
+	return objDevicesInfo, nil
+}
+
+//DeleteDeviceFromIoT: Deleting device from IoT by Device type and ID.
+func DeleteDeviceFromIoT(deviceType, deviceID string) (err error) {
+	url := common.IOT_URL + "device/types/" + deviceType + "/devices/" + deviceID
+
+	// Create client
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+	defer resp.Body.Close()
+
+	return err
+}
+
+// =============================== Cloudant Related Functions ===============================
+
+//GetDeviceNotificationFromCloudant: Deleting device notification from Cloudant by Device type and ID.
+func GetDeviceNotificationFromCloudant(deviceType string) (err error) {
+	url := common.IBM_URL + "iotp-notification/_design/iotp/_view/by-deviceType?key=" + deviceType
+
+	// Create client
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", common.IBM_AUTH)
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+//DeleteDeviceNotificationFromCloudant: Deleting device notification from Cloudant by Device type and ID.
+func DeleteDeviceNotificationFromCloudant(docID, revID string) (err error) {
+	url := common.IBM_URL + "iotp-notification/" + docID + "?rev=" + revID
+
+	// Create client
+	client := &http.Client{}
+
+	// Create request
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", common.IBM_AUTH)
+
+	// Fetch Request
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("%v", "Somwthing went wrong!")
+	}
+	defer resp.Body.Close()
+
 	return nil
 }

@@ -30,9 +30,12 @@ type Payload struct {
 	Weight      int `json:"weight"`
 }
 
+var ActiveDevices = map[string]bool{}
+
 func main() {
 	var wg sync.WaitGroup
 	runningThread := map[string]bool{}
+
 	for {
 		//-------fatching list of devicetypes
 		objBulkDeviceOutput := getDeviceTypes()
@@ -41,8 +44,11 @@ func main() {
 			return
 		}
 
-		for i, deviceInfo := range objBulkDeviceOutput.Results {
+		allDevices := map[string]bool{}
 
+		for i, deviceInfo := range objBulkDeviceOutput.Results {
+			ActiveDevices[deviceInfo.DeviceId+":"+deviceInfo.TypeId] = true
+			allDevices[deviceInfo.DeviceId+":"+deviceInfo.TypeId] = true
 			if okay := runningThread[deviceInfo.DeviceId+":"+deviceInfo.TypeId]; okay {
 				continue
 			}
@@ -50,12 +56,16 @@ func main() {
 			wg.Add(1)
 			go publishEvent(i, deviceInfo, &wg)
 			time.Sleep(1 * time.Second)
-		}
 
+		}
+		for ID := range ActiveDevices {
+			if _, okay := allDevices[ID]; !okay {
+				delete(ActiveDevices, ID)
+				delete(runningThread, ID)
+			}
+		}
 		time.Sleep(1 * time.Minute)
 	}
-	// wg.Wait()
-	// fmt.Println("Completed...")
 }
 
 func getDeviceTypes() (objBulkDeviceOutput BulkDeviceOutput) {
@@ -111,9 +121,13 @@ func publishEvent(i int, deviceInfo BulkDeviceResult, wg *sync.WaitGroup) {
 		if initialWeight > 200 {
 			initialWeight = 50.0
 		}
+
+		if _, okay := ActiveDevices[deviceInfo.DeviceId+":"+deviceInfo.TypeId]; !okay {
+			break
+		}
 		time.Sleep(20 * time.Second)
 	}
-
+	return
 }
 
 func getRandomNumber(min, max int) int {

@@ -24,10 +24,27 @@ import (
 
 // GetHourlyInsight:
 func GetHourlyInsight(w http.ResponseWriter, r *http.Request) {
+	var allData []GetHiveData
+	devicesName := map[string]bool{}
 	userInfo, err := CheckUserToken(r)
 	if err != nil {
 		common.APIResponse(w, http.StatusForbidden, err.Error())
 		return
+	}
+
+	objDevicesList, err := GetDevicesForIoT(userInfo.Username)
+	if err != nil {
+		common.APIResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if len(objDevicesList.Results) == 0 {
+		common.APIResponse(w, http.StatusOK, allData)
+		return
+	}
+
+	for _, deviceInfo := range objDevicesList.Results {
+		devicesName[deviceInfo.DeviceId] = true
 	}
 
 	vars := mux.Vars(r)
@@ -47,7 +64,6 @@ func GetHourlyInsight(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cur.Close(context.Background())
 
-	var allData []GetHiveData
 	for cur.Next(context.Background()) {
 		// To decode into a struct, use cursor.Decode()
 		var result GetHiveData
@@ -56,9 +72,11 @@ func GetHourlyInsight(w http.ResponseWriter, r *http.Request) {
 			common.APIResponse(w, http.StatusInternalServerError, "While processing receivied data:"+err.Error())
 			return
 		}
-
-		allData = append(allData, result)
+		if okay := devicesName[result.DeviceID]; okay {
+			allData = append(allData, result)
+		}
 	}
+
 	if err := cur.Err(); err != nil {
 		common.APIResponse(w, http.StatusInternalServerError, "While processing receivied data:"+err.Error())
 		return
@@ -153,40 +171,22 @@ func GetDeviceList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices"
-
-	resp, err := http.Get(url)
-	if err != nil {
-		common.APIResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
+	objDevicesList, err := GetDevicesForIoT(userInfo.Username)
 	if err != nil {
 		common.APIResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	var objDevicesInfo DevicesInfo
-
-	err = json.Unmarshal(body, &objDevicesInfo)
-	if err != nil {
-		common.APIResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if len(objDevicesInfo.Results) == 0 {
+	if len(objDevicesList.Results) == 0 {
 		common.APIResponse(w, http.StatusNotFound, "No device found")
 		return
 	}
 
-	common.APIResponse(w, resp.StatusCode, objDevicesInfo)
+	common.APIResponse(w, http.StatusOK, objDevicesList)
 }
 
 // GetDeviceInfo:
 func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
-
 	userInfo, err := CheckUserToken(r)
 	if err != nil {
 		common.APIResponse(w, http.StatusForbidden, err.Error())
@@ -221,39 +221,30 @@ func GetDeviceInfo(w http.ResponseWriter, r *http.Request) {
 
 // DeleteDeviceInfo:
 func DeleteDeviceInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var deviceID = vars["deviceID"]
+
 	userInfo, err := CheckUserToken(r)
 	if err != nil {
 		common.APIResponse(w, http.StatusForbidden, err.Error())
 		return
 	}
 
-	vars := mux.Vars(r)
-	var deviceID = vars["deviceID"]
-
-	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices/" + deviceID
-
-	// Create client
-	client := &http.Client{}
-
-	// Create request
-	req, err := http.NewRequest("DELETE", url, nil)
+	// Deleting device from IoT
+	err = DeleteDeviceFromIoT(userInfo.Username, deviceID)
 	if err != nil {
-		message := "Somwthing went wrong!"
-		common.APIResponse(w, http.StatusInternalServerError, message)
+		common.APIResponse(w, http.StatusInternalServerError, "Error while remore device from IoT, Error:"+err.Error())
 		return
 	}
 
-	// Fetch Request
-	resp, err := client.Do(req)
+	// Removing device data from DB
+	err = DeleteDeviceData(userInfo.Username, deviceID)
 	if err != nil {
-		message := "Something went wrong!"
-		common.APIResponse(w, http.StatusInternalServerError, message)
+		common.APIResponse(w, http.StatusInternalServerError, "Error while remore device from DB, Error:"+err.Error())
 		return
 	}
-	defer resp.Body.Close()
 
-	message := "Device has been removed!"
-	common.APIResponse(w, http.StatusOK, message)
+	common.APIResponse(w, http.StatusOK, "Device has been removed!")
 }
 
 // UpdateDeviceInfo:
