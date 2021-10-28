@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +13,8 @@ import (
 )
 
 const IOTURL = "https://a-8l173e-otjztnyacu:ChLq7u0pO+*hl7JER_@8l173e.internetofthings.ibmcloud.com/api/v0002/"
+const DEVICE_AUTH_TOKEN = "smarthives@12345"
+const DEVICE_AUTH_USER = "use-token-auth"
 
 type BulkDeviceOutput struct {
 	Results []BulkDeviceResult `json:"results"`
@@ -94,13 +95,13 @@ func getDeviceTypes() (objBulkDeviceOutput BulkDeviceOutput) {
 
 func publishEvent(i int, deviceInfo BulkDeviceResult, wg *sync.WaitGroup) {
 	defer wg.Done()
-	topicName := "iot-2/type/" + deviceInfo.TypeId + "/id/" + deviceInfo.DeviceId + "/evt/HiveEvent/fmt/json"
+	topicName := "iot-2/evt/HiveEvent/fmt/json"
 	opts := mqtt.NewClientOptions()
 
 	opts.AddBroker("tcp://8l173e.messaging.internetofthings.ibmcloud.com:1883")
-	opts.SetClientID("a:8l173e:runner" + strconv.Itoa(i))
-	opts.SetUsername("a-8l173e-ahdw2reb1r")
-	opts.SetPassword("XKe_utxjf(jf+VHkXV")
+	opts.SetClientID("d:8l173e:" + deviceInfo.TypeId + ":" + deviceInfo.DeviceId)
+	opts.SetUsername(DEVICE_AUTH_USER)
+	opts.SetPassword(DEVICE_AUTH_TOKEN)
 
 	c := mqtt.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
@@ -127,7 +128,6 @@ func publishEvent(i int, deviceInfo BulkDeviceResult, wg *sync.WaitGroup) {
 		}
 		time.Sleep(20 * time.Second)
 	}
-	return
 }
 
 func getRandomNumber(min, max int) int {

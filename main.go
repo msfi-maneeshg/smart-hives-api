@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	key := "iotp_8l173e_farmer-7_"
+	key := "iotp_8l173e_farmer-3_"
 	dt, _ := time.Parse("2006-01-02", "2021-10-04")
 	currentDate := time.Now().Add(24 * time.Hour).Format("2006-01-02")
 	for {

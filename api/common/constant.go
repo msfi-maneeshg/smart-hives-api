@@ -5,6 +5,7 @@ import "time"
 const MY_KEY = "smarthives"
 const REFERESH_KEY = "referesh-smarthives"
 const EXPIRE_TIME time.Duration = 10 // in minutes
+const DEVICE_AUTH_TOKEN = "smarthives@12345"
 
 const (
 	IOT_USERNAME  = "a-8l173e-otjztnyacu"

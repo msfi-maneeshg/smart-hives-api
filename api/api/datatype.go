@@ -95,6 +95,7 @@ type DevicesInfo struct {
 //NewDeviceInfo:
 type NewDeviceInfo struct {
 	DeviceId   string          `json:"deviceId,omitempty"`
+	AuthToken  string          `json:"authToken,omitempty"`
 	DeviceInfo DeviceOtherInfo `json:"deviceInfo,omitempty"`
 	Metadata   DeviceMetadata  `json:"metadata,omitempty"`
 }

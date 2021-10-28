@@ -144,7 +144,7 @@ func CreateNewDevice(w http.ResponseWriter, r *http.Request) {
 		common.APIResponse(w, http.StatusBadRequest, "DeviceID is already exist!")
 		return
 	}
-
+	objCreateNewDevice.AuthToken = common.DEVICE_AUTH_TOKEN
 	//-----------add new device
 	url := common.IOT_URL + "device/types/" + userInfo.Username + "/devices"
 	objByte, _ := json.Marshal(objCreateNewDevice)
